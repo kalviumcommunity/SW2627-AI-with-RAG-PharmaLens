@@ -1,6 +1,8 @@
 import fs from 'fs';
+import path from 'path';
 const pdfParse = require('pdf-parse');
 import { llmService } from './llm.service';
+import { vectorService } from './vector.service';
 
 export interface ProcessedChunk {
   text: string;
@@ -43,8 +45,19 @@ export class DocumentService {
         embedding: embeddings[i],
       }));
 
-      // In the next LU, we will store these in a vector database.
-      // For now, just return them.
+      // Store in Pinecone
+      const vectorDocuments = processedChunks.map((chunk, i) => ({
+        id: `${path.basename(filePath)}-chunk-${i}`,
+        values: chunk.embedding,
+        metadata: {
+          text: chunk.text,
+          filename: path.basename(filePath),
+          chunkIndex: i,
+        },
+      }));
+
+      await vectorService.upsertVectors(vectorDocuments);
+
       return processedChunks;
     } catch (error) {
       console.error('Error processing document:', error);

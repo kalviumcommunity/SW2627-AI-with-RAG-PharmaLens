@@ -15,13 +15,15 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@pinecone-database/pinecone": "^9.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.3.0",
     "openai": "^7.13.0",
     "pdf-parse": "^2.4.5",
-    "tiktoken": "^1.0.22"
+    "tiktoken": "^1.0.22",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -29,6 +31,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.20.2",
     "@types/pdf-parse": "^1.1.5",
+    "@types/uuid": "^10.0.0",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
