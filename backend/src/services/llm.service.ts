@@ -1,7 +1,17 @@
 import OpenAI from 'openai';
 import { env } from '../config/env';
-
 import { ChatCompletionMessageParam } from 'openai/resources';
+import { estimateTokenCount, calculateCost } from '../utils/tokenizer';
+
+export interface LLMResponse {
+  answer: string | null;
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedCostUsd: number;
+  };
+}
 
 export class LLMService {
   private openai: OpenAI;
@@ -12,9 +22,14 @@ export class LLMService {
     });
   }
 
-  async getCompletion(messages: ChatCompletionMessageParam[]): Promise<string | null> {
+  async getCompletion(messages: ChatCompletionMessageParam[]): Promise<LLMResponse> {
     if (!env.openAiApiKey) {
       throw new Error('OPENAI_API_KEY is not configured.');
+    }
+
+    const estimatedInputTokens = estimateTokenCount(messages);
+    if (estimatedInputTokens > env.llmMaxPromptTokens) {
+      throw new Error(`Prompt exceeds maximum token limit (${estimatedInputTokens} > ${env.llmMaxPromptTokens}).`);
     }
 
     try {
@@ -26,7 +41,22 @@ export class LLMService {
         { timeout: env.llmTimeoutMs }
       );
 
-      return response.choices[0]?.message?.content || null;
+      const answer = response.choices[0]?.message?.content || null;
+      
+      const inputTokens = response.usage?.prompt_tokens || estimatedInputTokens;
+      const outputTokens = response.usage?.completion_tokens || 0;
+      const totalTokens = response.usage?.total_tokens || (inputTokens + outputTokens);
+      const estimatedCostUsd = calculateCost(inputTokens, outputTokens);
+
+      return {
+        answer,
+        usage: {
+          inputTokens,
+          outputTokens,
+          totalTokens,
+          estimatedCostUsd,
+        }
+      };
     } catch (error: any) {
       console.error('LLM Completion Error:', error.message);
       throw new Error(`LLM Error: ${error.message}`);
