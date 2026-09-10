@@ -62,6 +62,45 @@ export class LLMService {
       throw new Error(`LLM Error: ${error.message}`);
     }
   }
+
+  public async streamCompletion(
+    messages: ChatCompletionMessageParam[],
+    onChunk: (text: string) => void
+  ): Promise<LLMResponse> {
+    const stream = await this.openai.chat.completions.create(
+      {
+        model: env.llmModel,
+        messages,
+        stream: true,
+      },
+      { timeout: env.llmTimeoutMs }
+    );
+
+    let fullAnswer = '';
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || '';
+      if (content) {
+        fullAnswer += content;
+        onChunk(content);
+      }
+    }
+
+    const inputString = messages.map(m => String(m.content)).join('\n');
+    const inputTokens = estimateTokenCount(inputString);
+    const outputTokens = estimateTokenCount(fullAnswer);
+    const totalTokens = inputTokens + outputTokens;
+
+    return {
+      answer: fullAnswer,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        estimatedCostUsd: calculateCost(inputTokens, outputTokens),
+      },
+    };
+  }
 }
 
 export const llmService = new LLMService();
