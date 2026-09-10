@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { llmRoutes } from './routes/llm.routes';
+import { env } from './config/env';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = env.port;
 
 app.use(cors());
 app.use(express.json());
@@ -14,6 +16,9 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Mount LLM Routes
+app.use('/api/llm', llmRoutes);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
