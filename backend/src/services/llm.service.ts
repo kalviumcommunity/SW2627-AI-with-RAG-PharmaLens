@@ -101,6 +101,37 @@ export class LLMService {
       },
     };
   }
+
+  public calculateCosts(inputTokens: number, outputTokens: number): number {
+    const inputCost = (inputTokens / 1000) * env.llmInputCostPer1k;
+    const outputCost = (outputTokens / 1000) * env.llmOutputCostPer1k;
+    return inputCost + outputCost;
+  }
+
+  /**
+   * Generates vector embeddings for a list of text chunks.
+   * 
+   * @param texts An array of text chunks
+   * @returns An array of number arrays (vectors)
+   */
+  async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    if (!env.openAiApiKey) {
+      throw new Error('OPENAI_API_KEY is not configured.');
+    }
+
+    try {
+      const response = await this.openai.embeddings.create({
+        model: env.embeddingModel,
+        input: texts,
+      });
+
+      // Map back to the requested array of vectors, maintaining order
+      return response.data.map(item => item.embedding);
+    } catch (error: any) {
+      console.error('LLM Embedding Error:', error.message);
+      throw new Error(`Embedding Error: ${error.message}`);
+    }
+  }
 }
 
 export const llmService = new LLMService();
