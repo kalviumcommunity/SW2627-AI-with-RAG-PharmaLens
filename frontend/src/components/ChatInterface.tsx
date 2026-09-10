@@ -7,6 +7,7 @@ interface Message {
   role: 'user' | 'assistant' | 'error';
   content: string;
   timestamp: Date;
+  isStreaming?: boolean;
 }
 
 export const ChatInterface = () => {
@@ -47,6 +48,8 @@ export const ChatInterface = () => {
     setIsLoading(true);
 
     try {
+      // For future SSE streaming, we could add a placeholder assistant message here with isStreaming = true,
+      // and append chunks to it. For now, since it's a single fetch, we wait for the response.
       const response = await sendPrompt(userMessage.content, sessionId);
       
       const assistantMessage: Message = {
@@ -54,14 +57,22 @@ export const ChatInterface = () => {
         role: 'assistant',
         content: response.answer || "I couldn't generate a response.",
         timestamp: new Date(),
+        isStreaming: false,
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error: any) {
+      let friendlyMessage = error.message || 'An error occurred while connecting to the server.';
+      
+      // We can customize the friendly message if it's one of our typed errors
+      if (friendlyMessage.startsWith('NetworkError:')) friendlyMessage = friendlyMessage.replace('NetworkError: ', '');
+      if (friendlyMessage.startsWith('TokenLimitError:')) friendlyMessage = friendlyMessage.replace('TokenLimitError: ', '');
+      if (friendlyMessage.startsWith('TimeoutError:')) friendlyMessage = friendlyMessage.replace('TimeoutError: ', '');
+
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'error',
-        content: error.message || 'An error occurred while connecting to the server.',
+        content: friendlyMessage,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -112,11 +123,17 @@ export const ChatInterface = () => {
               <div className={`px-5 py-3.5 rounded-2xl shadow-sm border
                 ${msg.role === 'user' ? 'bg-blue-600 text-white border-blue-700 rounded-tr-sm' : 
                   msg.role === 'error' ? 'bg-red-50 text-red-800 border-red-200 rounded-tl-sm' : 
-                  'bg-white text-slate-800 border-slate-200 rounded-tl-sm'}`}
+                  'bg-white text-slate-800 border-slate-200 rounded-tl-sm'} 
+                ${msg.isStreaming ? 'animate-pulse bg-slate-50' : ''}`}
               >
                 <div className="prose prose-sm max-w-none">
                   {msg.content.split('\n').map((line, i) => (
-                    <p key={i} className="mb-1 last:mb-0">{line}</p>
+                    <p key={i} className="mb-1 last:mb-0">
+                      {line}
+                      {msg.isStreaming && i === msg.content.split('\n').length - 1 && (
+                        <span className="inline-block w-2 h-4 ml-1 bg-slate-400 animate-pulse align-middle" />
+                      )}
+                    </p>
                   ))}
                 </div>
                 <div className={`text-[10px] mt-2 font-medium ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
