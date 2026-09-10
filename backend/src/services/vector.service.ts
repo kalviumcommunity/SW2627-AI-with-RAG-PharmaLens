@@ -84,6 +84,36 @@ export class VectorService {
       throw new Error(`Vector DB Query Error: ${error.message}`);
     }
   }
+
+  /**
+   * Calculates the exact mathematical cosine similarity between two text strings.
+   * 
+   * @param textA First string
+   * @param textB Second string
+   * @returns Cosine similarity score
+   */
+  async calculateTextSimilarity(textA: string, textB: string): Promise<number> {
+    const { llmService } = await import('./llm.service');
+    const { cosineSimilarity } = await import('../utils/math');
+    
+    try {
+      // 1. Generate embeddings for both strings
+      const embeddings = await llmService.generateEmbeddings([textA, textB]);
+      
+      if (embeddings.length !== 2) {
+        throw new Error('Failed to generate embeddings for both texts.');
+      }
+      
+      const vecA = embeddings[0];
+      const vecB = embeddings[1];
+      
+      // 2. Calculate the cosine similarity
+      return cosineSimilarity(vecA, vecB);
+    } catch (error: any) {
+      console.error('Similarity Calculation Error:', error.message);
+      throw new Error(`Similarity Error: ${error.message}`);
+    }
+  }
 }
 
 export const vectorService = new VectorService();
