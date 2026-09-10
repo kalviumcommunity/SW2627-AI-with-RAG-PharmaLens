@@ -3,7 +3,27 @@ import { llmService } from '../services/llm.service';
 import { buildRagPrompt } from '../utils/promptBuilder';
 import { historyService } from '../services/history.service';
 
+import { vectorService } from '../services/vector.service';
+
 const router = Router();
+
+// Helper to retrieve context
+async function retrieveContext(prompt: string): Promise<string> {
+  try {
+    const queryVector = await llmService.generateEmbeddings([prompt]);
+    if (queryVector.length === 0) return '';
+
+    const matches = await vectorService.queryVectors(queryVector[0], 3);
+    if (matches.length === 0) return '';
+
+    // Build context string from metadata
+    const contextStr = matches.map(m => `Source: ${m.filename}\n${m.text}`).join('\n\n');
+    return contextStr;
+  } catch (err) {
+    console.error('Retrieval error:', err);
+    return ''; // Fail gracefully if Pinecone is down or not set
+  }
+}
 
 router.post('/test', async (req, res) => {
   const { prompt, systemInstruction, context, sessionId } = req.body;
@@ -13,10 +33,13 @@ router.post('/test', async (req, res) => {
   }
 
   try {
+    const retrievedContext = await retrieveContext(prompt);
+    const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
+
     const newMessages = buildRagPrompt({
       userQuestion: prompt,
       systemInstruction,
-      context,
+      context: finalContext,
     });
 
     let finalMessages = newMessages;
@@ -67,10 +90,13 @@ router.post('/stream', async (req, res) => {
   });
 
   try {
+    const retrievedContext = await retrieveContext(prompt);
+    const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
+
     const newMessages = buildRagPrompt({
       userQuestion: prompt,
       systemInstruction,
-      context,
+      context: finalContext,
     });
 
     let finalMessages = newMessages;
