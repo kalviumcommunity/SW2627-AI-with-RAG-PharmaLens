@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Bot, User, ShieldAlert } from 'lucide-react';
-import { sendPrompt } from '../services/api';
+import { streamPrompt } from '../services/api';
 
 interface Message {
   id: string;
@@ -48,19 +48,31 @@ export const ChatInterface = () => {
     setIsLoading(true);
 
     try {
-      // For future SSE streaming, we could add a placeholder assistant message here with isStreaming = true,
-      // and append chunks to it. For now, since it's a single fetch, we wait for the response.
-      const response = await sendPrompt(userMessage.content, sessionId);
-      
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+      const assistantId = crypto.randomUUID();
+      const initialAssistantMessage: Message = {
+        id: assistantId,
         role: 'assistant',
-        content: response.answer || "I couldn't generate a response.",
+        content: '',
         timestamp: new Date(),
-        isStreaming: false,
+        isStreaming: true,
       };
       
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, initialAssistantMessage]);
+      setIsLoading(false); // Stop main loading spinner, rely on message isStreaming
+
+      const response = await streamPrompt(userMessage.content, sessionId, (chunk) => {
+        setMessages((prev) => 
+          prev.map((msg) => 
+            msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg
+          )
+        );
+      });
+      
+      setMessages((prev) => 
+        prev.map((msg) => 
+          msg.id === assistantId ? { ...msg, content: response.answer || "I couldn't generate a response.", isStreaming: false } : msg
+        )
+      );
     } catch (error: any) {
       let friendlyMessage = error.message || 'An error occurred while connecting to the server.';
       
