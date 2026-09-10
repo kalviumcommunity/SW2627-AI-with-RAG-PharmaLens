@@ -1,6 +1,8 @@
 import OpenAI from 'openai';
 import { env } from '../config/env';
 
+import { ChatCompletionMessageParam } from 'openai/resources';
+
 export class LLMService {
   private openai: OpenAI;
 
@@ -10,7 +12,7 @@ export class LLMService {
     });
   }
 
-  async getCompletion(prompt: string): Promise<string | null> {
+  async getCompletion(messages: ChatCompletionMessageParam[]): Promise<string | null> {
     if (!env.openAiApiKey) {
       throw new Error('OPENAI_API_KEY is not configured.');
     }
@@ -19,7 +21,7 @@ export class LLMService {
       const response = await this.openai.chat.completions.create(
         {
           model: env.llmModel,
-          messages: [{ role: 'user', content: prompt }],
+          messages,
         },
         { timeout: env.llmTimeoutMs }
       );
