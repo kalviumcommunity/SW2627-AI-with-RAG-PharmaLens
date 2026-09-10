@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { uploadMiddleware } from '../middlewares/upload.middleware';
+import { documentService } from '../services/document.service';
 
 const router = Router();
 
-router.post('/upload', uploadMiddleware.single('file'), (req, res) => {
+router.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded or invalid file type.' });
@@ -17,9 +18,13 @@ router.post('/upload', uploadMiddleware.single('file'), (req, res) => {
       path: req.file.path,
     };
 
+    // Process document into chunks
+    const chunks = await documentService.processDocument(fileData.path, fileData.mimetype);
+
     return res.status(200).json({
-      message: 'File uploaded successfully',
+      message: 'File uploaded and processed successfully',
       file: fileData,
+      chunksGenerated: chunks.length,
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
