@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2, Bot, User, ShieldAlert } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { streamPrompt } from '../services/api';
 
 interface Message {
@@ -136,17 +138,18 @@ export const ChatInterface = () => {
                 ${msg.role === 'user' ? 'bg-blue-600 text-white border-blue-700 rounded-tr-sm' : 
                   msg.role === 'error' ? 'bg-red-50 text-red-800 border-red-200 rounded-tl-sm' : 
                   'bg-white text-slate-800 border-slate-200 rounded-tl-sm'} 
-                ${msg.isStreaming ? 'animate-pulse bg-slate-50' : ''}`}
+                ${msg.isStreaming ? 'bg-slate-50' : ''}`}
               >
-                <div className="prose prose-sm max-w-none">
-                  {msg.content.split('\n').map((line, i) => (
-                    <p key={i} className="mb-1 last:mb-0">
-                      {line}
-                      {msg.isStreaming && i === msg.content.split('\n').length - 1 && (
-                        <span className="inline-block w-2 h-4 ml-1 bg-slate-400 animate-pulse align-middle" />
-                      )}
-                    </p>
-                  ))}
+                <div className={`prose max-w-none ${msg.role === 'user' ? 'prose-invert prose-p:text-white' : 'prose-slate'} prose-sm`}>
+                  {msg.role === 'user' || msg.role === 'error' ? (
+                    msg.content.split('\n').map((line, i) => (
+                      <p key={i} className="mb-1 last:mb-0">{line}</p>
+                    ))
+                  ) : (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content + (msg.isStreaming ? ' ▍' : '')}
+                    </ReactMarkdown>
+                  )}
                 </div>
                 <div className={`text-[10px] mt-2 font-medium ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
