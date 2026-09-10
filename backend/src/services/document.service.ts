@@ -1,5 +1,11 @@
 import fs from 'fs';
 const pdfParse = require('pdf-parse');
+import { llmService } from './llm.service';
+
+export interface ProcessedChunk {
+  text: string;
+  embedding: number[];
+}
 
 export class DocumentService {
   /**
@@ -7,9 +13,9 @@ export class DocumentService {
    * 
    * @param filePath The absolute path to the uploaded file
    * @param mimetype The MIME type of the file
-   * @returns An array of text chunks
+   * @returns An array of processed chunks with embeddings
    */
-  async processDocument(filePath: string, mimetype: string): Promise<string[]> {
+  async processDocument(filePath: string, mimetype: string): Promise<ProcessedChunk[]> {
     let text = '';
 
     try {
@@ -26,7 +32,20 @@ export class DocumentService {
       // Simple cleaning
       text = text.replace(/\s+/g, ' ').trim();
 
-      return this.chunkText(text);
+      const chunks = this.chunkText(text);
+
+      // Generate Embeddings
+      const embeddings = await llmService.generateEmbeddings(chunks);
+
+      // Map chunks with their corresponding vectors
+      const processedChunks: ProcessedChunk[] = chunks.map((chunk, i) => ({
+        text: chunk,
+        embedding: embeddings[i],
+      }));
+
+      // In the next LU, we will store these in a vector database.
+      // For now, just return them.
+      return processedChunks;
     } catch (error) {
       console.error('Error processing document:', error);
       throw error;
