@@ -28,11 +28,22 @@ export const sendPrompt = async (prompt: string, sessionId?: string): Promise<LL
         prompt,
         sessionId,
       }),
+    }).catch(() => {
+      throw new Error('NetworkError: The server is currently unreachable. Please ensure the backend is running.');
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      const errorMsg = errorData.error || `HTTP error! status: ${response.status}`;
+      
+      if (errorMsg.includes('exceeds maximum token limit')) {
+        throw new Error('TokenLimitError: Your prompt is too long. Please shorten it and try again.');
+      }
+      if (errorMsg.includes('timeout')) {
+        throw new Error('TimeoutError: The LLM took too long to respond. Please try again.');
+      }
+      
+      throw new Error(`API Error: ${errorMsg}`);
     }
 
     return await response.json();
