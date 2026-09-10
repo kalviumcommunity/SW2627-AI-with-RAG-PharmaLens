@@ -18,8 +18,8 @@ router.post('/test', async (req, res) => {
       context,
     });
 
-    const answer = await llmService.getCompletion(messages);
-    return res.status(200).json({ answer });
+    const result = await llmService.getCompletion(messages);
+    return res.status(200).json(result);
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
