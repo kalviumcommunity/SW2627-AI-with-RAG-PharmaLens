@@ -143,3 +143,31 @@ export const streamPrompt = async (
     throw error;
   }
 };
+
+/**
+ * Uploads a document to the backend for processing.
+ * 
+ * @param file The File object from the file input
+ * @returns Response data containing file metadata
+ */
+export const uploadDocument = async (file: File): Promise<any> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Upload API Error:', error);
+    throw error;
+  }
+};
