@@ -108,8 +108,13 @@ export class LLMService {
     return inputCost + outputCost;
   }
 
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   /**
    * Generates vector embeddings for a list of text chunks.
+   * Processes chunks in batches to avoid API payload and rate limits.
    * 
    * @param texts An array of text chunks
    * @returns An array of number arrays (vectors)
@@ -120,13 +125,27 @@ export class LLMService {
     }
 
     try {
-      const response = await this.openai.embeddings.create({
-        model: env.embeddingModel,
-        input: texts,
-      });
+      const allEmbeddings: number[][] = [];
+      const batchSize = 100;
 
-      // Map back to the requested array of vectors, maintaining order
-      return response.data.map(item => item.embedding);
+      for (let i = 0; i < texts.length; i += batchSize) {
+        const batch = texts.slice(i, i + batchSize);
+        
+        const response = await this.openai.embeddings.create({
+          model: env.embeddingModel,
+          input: batch,
+        });
+
+        const batchEmbeddings = response.data.map(item => item.embedding);
+        allEmbeddings.push(...batchEmbeddings);
+
+        // Add a small delay between batches if there are more batches to process
+        if (i + batchSize < texts.length) {
+          await this.sleep(200);
+        }
+      }
+
+      return allEmbeddings;
     } catch (error: any) {
       console.error('LLM Embedding Error:', error.message);
       throw new Error(`Embedding Error: ${error.message}`);
