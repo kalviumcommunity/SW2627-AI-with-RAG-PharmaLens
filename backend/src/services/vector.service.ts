@@ -114,7 +114,10 @@ export class VectorService {
         includeMetadata: true,
       });
 
-      return queryResponse.matches.map(match => match.metadata);
+      return queryResponse.matches.map(match => ({
+        score: match.score,
+        metadata: match.metadata
+      }));
     } catch (error: any) {
       console.error('Pinecone Query Error:', error.message);
       throw new Error(`Vector DB Query Error: ${error.message}`);
