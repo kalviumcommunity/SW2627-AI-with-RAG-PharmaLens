@@ -1,12 +1,23 @@
 import fs from 'fs';
 import path from 'path';
 const pdfParse = require('pdf-parse');
+import { v4 as uuidv4 } from 'uuid';
 import { llmService } from './llm.service';
 import { vectorService } from './vector.service';
+
+const DB_PATH = path.join(__dirname, '../../data/documents.json');
 
 export interface ProcessedChunk {
   text: string;
   embedding: number[];
+}
+
+export interface DocumentMetadata {
+  id: string;
+  filename: string;
+  size: number;
+  chunksGenerated: number;
+  uploadDate: string;
 }
 
 export class DocumentService {
@@ -45,18 +56,32 @@ export class DocumentService {
         embedding: embeddings[i],
       }));
 
+      const documentId = uuidv4();
+      
       // Store in Pinecone
       const vectorDocuments = processedChunks.map((chunk, i) => ({
-        id: `${path.basename(filePath)}-chunk-${i}`,
+        id: `${documentId}-chunk-${i}`,
         values: chunk.embedding,
         metadata: {
           text: chunk.text,
+          documentId,
           filename: path.basename(filePath),
           chunkIndex: i,
         },
       }));
 
       await vectorService.upsertVectors(vectorDocuments);
+
+      // Save document metadata locally
+      const docMeta: DocumentMetadata = {
+        id: documentId,
+        filename: path.basename(filePath),
+        size: (await fs.promises.stat(filePath)).size,
+        chunksGenerated: processedChunks.length,
+        uploadDate: new Date().toISOString(),
+      };
+      
+      await this.saveDocumentMetadata(docMeta);
 
       return processedChunks;
     } catch (error) {
@@ -86,6 +111,40 @@ export class DocumentService {
     }
 
     return chunks;
+  }
+
+  /**
+   * Retrieves all document metadata from the local store.
+   */
+  async getAllDocuments(): Promise<DocumentMetadata[]> {
+    try {
+      if (!fs.existsSync(DB_PATH)) {
+        return [];
+      }
+      const data = await fs.promises.readFile(DB_PATH, 'utf-8');
+      return JSON.parse(data) as DocumentMetadata[];
+    } catch (error) {
+      console.error('Failed to read document database:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Saves a new document metadata record to the local store.
+   */
+  private async saveDocumentMetadata(meta: DocumentMetadata): Promise<void> {
+    const docs = await this.getAllDocuments();
+    docs.push(meta);
+
+    try {
+      const dir = path.dirname(DB_PATH);
+      if (!fs.existsSync(dir)) {
+        await fs.promises.mkdir(dir, { recursive: true });
+      }
+      await fs.promises.writeFile(DB_PATH, JSON.stringify(docs, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Failed to save document metadata:', error);
+    }
   }
 }
 
