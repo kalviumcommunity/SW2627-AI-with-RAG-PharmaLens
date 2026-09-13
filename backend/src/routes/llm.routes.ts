@@ -8,12 +8,13 @@ import { vectorService } from '../services/vector.service';
 const router = Router();
 
 // Helper to retrieve context
-async function retrieveContext(prompt: string): Promise<string> {
+async function retrieveContext(prompt: string, documentId?: string): Promise<string> {
   try {
     const queryVector = await llmService.generateEmbeddings([prompt]);
     if (queryVector.length === 0) return '';
 
-    const matches = await vectorService.queryVectors(queryVector[0], 3);
+    const filter = documentId ? { documentId } : undefined;
+    const matches = await vectorService.queryVectors(queryVector[0], 3, filter);
     if (matches.length === 0) return '';
 
     // Build context string from metadata
@@ -26,14 +27,14 @@ async function retrieveContext(prompt: string): Promise<string> {
 }
 
 router.post('/test', async (req, res) => {
-  const { prompt, systemInstruction, context, sessionId } = req.body;
+  const { prompt, systemInstruction, context, sessionId, documentId } = req.body;
 
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Valid prompt string is required.' });
   }
 
   try {
-    const retrievedContext = await retrieveContext(prompt);
+    const retrievedContext = await retrieveContext(prompt, documentId);
     const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
 
     const newMessages = buildRagPrompt({
@@ -71,7 +72,7 @@ router.post('/test', async (req, res) => {
 });
 
 router.post('/stream', async (req, res) => {
-  const { prompt, systemInstruction, context, sessionId } = req.body;
+  const { prompt, systemInstruction, context, sessionId, documentId } = req.body;
 
   if (!prompt || typeof prompt !== 'string') {
     return res.status(400).json({ error: 'Valid prompt string is required.' });
@@ -90,7 +91,7 @@ router.post('/stream', async (req, res) => {
   });
 
   try {
-    const retrievedContext = await retrieveContext(prompt);
+    const retrievedContext = await retrieveContext(prompt, documentId);
     const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
 
     const newMessages = buildRagPrompt({
