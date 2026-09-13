@@ -5,6 +5,8 @@ import { historyService } from '../services/history.service';
 
 import { vectorService } from '../services/vector.service';
 
+import { rerankChunks } from '../utils/reranker';
+
 const router = Router();
 
 // Helper to retrieve context
@@ -14,14 +16,18 @@ async function retrieveContext(prompt: string, documentId?: string): Promise<str
     if (queryVector.length === 0) return '';
 
     const filter = documentId ? { documentId } : undefined;
-    const matches = await vectorService.queryVectors(queryVector[0], 3, filter);
+    // Stage 1: Recall a larger pool (topK = 10)
+    const matches = await vectorService.queryVectors(queryVector[0], 10, filter);
     
-    // Filter matches that are actually mathematically relevant
+    // Filter matches that are mathematically relevant
     const relevantMatches = matches.filter(m => m.score && m.score >= 0.4);
     if (relevantMatches.length === 0) return '';
 
+    // Stage 2: Lexical Re-Ranking (boost keyword matches and take top 3)
+    const finalChunks = rerankChunks(prompt, relevantMatches, 3);
+
     // Build context string from metadata
-    const contextStr = relevantMatches.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
+    const contextStr = finalChunks.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
     return contextStr;
   } catch (err) {
     console.error('Retrieval error:', err);

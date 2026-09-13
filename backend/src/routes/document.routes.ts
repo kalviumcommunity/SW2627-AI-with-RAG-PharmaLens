@@ -78,10 +78,16 @@ router.post('/search', async (req, res) => {
 
     // Perform Top-K Similarity Search with optional filter
     const filter = documentId ? { documentId } : undefined;
-    const rawResults = await vectorService.queryVectors(embeddings[0], topK || 5, filter);
+    const fetchCount = (topK || 5) * 2;
+    // Stage 1: Recall larger pool
+    const rawResults = await vectorService.queryVectors(embeddings[0], fetchCount, filter);
     
     // Relevance tuning: enforce minimum threshold
-    const results = rawResults.filter((r: any) => r.score && r.score >= 0.4);
+    const relevantResults = rawResults.filter((r: any) => r.score && r.score >= 0.4);
+
+    // Stage 2: Re-rank and take Top K
+    const { rerankChunks } = await import('../utils/reranker');
+    const results = rerankChunks(query, relevantResults, topK || 5);
 
     return res.status(200).json({
       query,
