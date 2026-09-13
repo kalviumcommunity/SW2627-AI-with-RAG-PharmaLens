@@ -22,6 +22,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/llm', llmRoutes);
 app.use('/api/documents', documentRoutes);
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+import { vectorService } from './services/vector.service';
+
+// Initialize the database before starting the server
+vectorService.initializeDatabase().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
 });

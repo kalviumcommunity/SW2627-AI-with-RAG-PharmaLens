@@ -29,6 +29,42 @@ export class VectorService {
   }
 
   /**
+   * Initializes the database by checking if the required index exists.
+   * If it does not exist, it will automatically provision it.
+   */
+  async initializeDatabase(): Promise<void> {
+    if (!this.pinecone || !this.isInitialized) {
+      console.warn('Pinecone is not initialized. Skipping database provisioning.');
+      return;
+    }
+
+    try {
+      const indexList = await this.pinecone.listIndexes();
+      const indexExists = indexList.indexes?.some(idx => idx.name === env.pineconeIndex);
+
+      if (!indexExists) {
+        console.log(`Vector database index '${env.pineconeIndex}' not found. Provisioning now...`);
+        await this.pinecone.createIndex({
+          name: env.pineconeIndex,
+          dimension: 1536,
+          metric: 'cosine',
+          spec: {
+            serverless: {
+              cloud: 'aws',
+              region: 'us-east-1'
+            }
+          }
+        });
+        console.log(`Vector database index '${env.pineconeIndex}' successfully provisioned.`);
+      } else {
+        console.log(`Vector database index '${env.pineconeIndex}' is ready.`);
+      }
+    } catch (error: any) {
+      console.error('Failed to provision Vector DB:', error.message);
+    }
+  }
+
+  /**
    * Upserts vectors into the Pinecone index.
    * 
    * @param vectors Array of vectors to upsert
