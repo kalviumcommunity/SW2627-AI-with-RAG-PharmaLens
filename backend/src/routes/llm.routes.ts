@@ -17,7 +17,7 @@ async function retrieveContext(prompt: string): Promise<string> {
     if (matches.length === 0) return '';
 
     // Build context string from metadata
-    const contextStr = matches.map(m => `Source: ${m.filename}\n${m.text}`).join('\n\n');
+    const contextStr = matches.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
     return contextStr;
   } catch (err) {
     console.error('Retrieval error:', err);

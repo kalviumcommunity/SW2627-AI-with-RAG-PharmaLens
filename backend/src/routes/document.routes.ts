@@ -61,6 +61,33 @@ router.post('/similarity', async (req, res) => {
   }
 });
 
+router.post('/search', async (req, res) => {
+  const { query, topK } = req.body;
+
+  if (!query || typeof query !== 'string') {
+    return res.status(400).json({ error: 'A valid search query string is required.' });
+  }
+
+  try {
+    const { llmService } = await import('../services/llm.service');
+    // Generate the embedding for the search query
+    const embeddings = await llmService.generateEmbeddings([query]);
+    if (!embeddings || embeddings.length === 0) {
+      throw new Error('Failed to generate embeddings for query.');
+    }
+
+    // Perform Top-K Similarity Search
+    const results = await vectorService.queryVectors(embeddings[0], topK || 5);
+
+    return res.status(200).json({
+      query,
+      results
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // Basic error handler for multer errors
 router.use((err: any, req: any, res: any, next: any) => {
   if (err) {
