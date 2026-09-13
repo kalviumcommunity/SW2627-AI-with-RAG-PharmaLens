@@ -5,6 +5,15 @@ import { vectorService } from '../services/vector.service';
 
 const router = Router();
 
+router.get('/', async (req, res) => {
+  try {
+    const docs = await documentService.getAllDocuments();
+    return res.status(200).json(docs);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 router.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
   try {
     if (!req.file) {
