@@ -78,7 +78,10 @@ router.post('/search', async (req, res) => {
 
     // Perform Top-K Similarity Search with optional filter
     const filter = documentId ? { documentId } : undefined;
-    const results = await vectorService.queryVectors(embeddings[0], topK || 5, filter);
+    const rawResults = await vectorService.queryVectors(embeddings[0], topK || 5, filter);
+    
+    // Relevance tuning: enforce minimum threshold
+    const results = rawResults.filter((r: any) => r.score && r.score >= 0.4);
 
     return res.status(200).json({
       query,
