@@ -97,9 +97,10 @@ export class VectorService {
    * 
    * @param vector The query vector
    * @param topK Number of results to return
+   * @param filter Optional metadata filter to restrict search
    * @returns Array of matching metadata
    */
-  async queryVectors(vector: number[], topK: number = 3): Promise<any[]> {
+  async queryVectors(vector: number[], topK: number = 3, filter?: Record<string, any>): Promise<any[]> {
     if (!this.pinecone || !this.isInitialized) {
       console.warn('Pinecone is not initialized. Returning empty query results.');
       return [];
@@ -111,6 +112,7 @@ export class VectorService {
       const queryResponse = await index.query({
         vector,
         topK,
+        filter,
         includeMetadata: true,
       });
 

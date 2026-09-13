@@ -62,7 +62,7 @@ router.post('/similarity', async (req, res) => {
 });
 
 router.post('/search', async (req, res) => {
-  const { query, topK } = req.body;
+  const { query, topK, documentId } = req.body;
 
   if (!query || typeof query !== 'string') {
     return res.status(400).json({ error: 'A valid search query string is required.' });
@@ -76,8 +76,9 @@ router.post('/search', async (req, res) => {
       throw new Error('Failed to generate embeddings for query.');
     }
 
-    // Perform Top-K Similarity Search
-    const results = await vectorService.queryVectors(embeddings[0], topK || 5);
+    // Perform Top-K Similarity Search with optional filter
+    const filter = documentId ? { documentId } : undefined;
+    const results = await vectorService.queryVectors(embeddings[0], topK || 5, filter);
 
     return res.status(200).json({
       query,
