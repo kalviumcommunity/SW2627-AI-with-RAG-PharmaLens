@@ -15,10 +15,13 @@ async function retrieveContext(prompt: string, documentId?: string): Promise<str
 
     const filter = documentId ? { documentId } : undefined;
     const matches = await vectorService.queryVectors(queryVector[0], 3, filter);
-    if (matches.length === 0) return '';
+    
+    // Filter matches that are actually mathematically relevant
+    const relevantMatches = matches.filter(m => m.score && m.score >= 0.4);
+    if (relevantMatches.length === 0) return '';
 
     // Build context string from metadata
-    const contextStr = matches.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
+    const contextStr = relevantMatches.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
     return contextStr;
   } catch (err) {
     console.error('Retrieval error:', err);
