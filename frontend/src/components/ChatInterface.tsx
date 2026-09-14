@@ -14,12 +14,16 @@ interface Message {
   isRefusal?: boolean;
 }
 
-export const ChatInterface = () => {
+interface ChatInterfaceProps {
+  documentId?: string | null;
+}
+
+export const ChatInterface = ({ documentId }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome-msg',
       role: 'assistant',
-      content: 'Hello! I am your PharmaLens Research Assistant. How can I help you analyze pharmaceutical documents today?',
+      content: '**Welcome to PharmaLens!** 🔬\n\n**The Problem:** Reading hundreds of pages of dense clinical trial data and FDA reports is time-consuming, and standard keyword search often misses the true context of medical questions.\n\n**The Solution:** I am an AI-powered Medical Assistant using RAG (Retrieval-Augmented Generation). Upload your documents above and ask me questions in plain English. I will read the entire document, understand your question, and give you hallucination-free answers backed by **exact citations**.\n\nHow can I help you analyze your pharmaceutical documents today?',
       timestamp: new Date(),
     }
   ]);
@@ -64,7 +68,7 @@ export const ChatInterface = () => {
       setMessages((prev) => [...prev, initialAssistantMessage]);
       setIsLoading(false); // Stop main loading spinner, rely on message isStreaming
 
-      const response = await streamPrompt(userMessage.content, sessionId, (chunk) => {
+      const response = await streamPrompt(userMessage.content, sessionId, documentId || undefined, (chunk) => {
         setMessages((prev) => 
           prev.map((msg) => 
             msg.id === assistantId ? { ...msg, content: msg.content + chunk } : msg

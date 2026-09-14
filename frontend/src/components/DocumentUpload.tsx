@@ -2,7 +2,11 @@ import { useState, useRef } from 'react';
 import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { uploadDocument } from '../services/api';
 
-export const DocumentUpload = () => {
+interface DocumentUploadProps {
+  onUploadSuccess?: (documentId: string, filename: string) => void;
+}
+
+export const DocumentUpload = ({ onUploadSuccess }: DocumentUploadProps) => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -38,10 +42,13 @@ export const DocumentUpload = () => {
     setUploadStatus('idle');
 
     try {
-      await uploadDocument(file);
+      const result = await uploadDocument(file);
       setUploadStatus('success');
       setFile(null); // Clear file after successful upload
       if (fileInputRef.current) fileInputRef.current.value = ''; // Reset input
+      if (onUploadSuccess && result.documentId) {
+        onUploadSuccess(result.documentId, result.file.originalName);
+      }
     } catch (error: any) {
       setUploadStatus('error');
       setErrorMessage(error.message || 'Failed to upload document.');

@@ -66,6 +66,7 @@ export const sendPrompt = async (prompt: string, sessionId?: string): Promise<LL
 export const streamPrompt = async (
   prompt: string, 
   sessionId?: string,
+  documentId?: string,
   onChunk?: (chunk: string) => void
 ): Promise<LLMResponse> => {
   try {
@@ -77,6 +78,7 @@ export const streamPrompt = async (
       body: JSON.stringify({
         prompt,
         sessionId,
+        documentId,
       }),
     }).catch(() => {
       throw new Error('NetworkError: The server is currently unreachable. Please ensure the backend is running.');
@@ -176,6 +178,20 @@ export const uploadDocument = async (file: File): Promise<any> => {
     return await response.json();
   } catch (error) {
     console.error('Upload API Error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetches all available documents.
+ */
+export const getDocuments = async (): Promise<any[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/documents`);
+    if (!response.ok) throw new Error('Failed to fetch documents');
+    return await response.json();
+  } catch (error) {
+    console.error('Fetch Documents Error:', error);
     throw error;
   }
 };
