@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { llmRoutes } from './routes/llm.routes';
+import { ragRoutes } from './routes/rag.routes';
 import { documentRoutes } from './routes/document.routes';
 import { env } from './config/env';
 
@@ -19,7 +19,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Register routes
-app.use('/api/llm', llmRoutes);
+app.use('/api/rag', ragRoutes);
 app.use('/api/documents', documentRoutes);
 
 import { vectorService } from './services/vector.service';
