@@ -28,7 +28,7 @@ export class DocumentService {
    * @param mimetype The MIME type of the file
    * @returns An array of processed chunks with embeddings
    */
-  async processDocument(filePath: string, mimetype: string): Promise<ProcessedChunk[]> {
+  async processDocument(filePath: string, mimetype: string): Promise<{ chunks: ProcessedChunk[], documentId: string }> {
     let text = '';
 
     try {
@@ -83,7 +83,7 @@ export class DocumentService {
       
       await this.saveDocumentMetadata(docMeta);
 
-      return processedChunks;
+      return { chunks: processedChunks, documentId };
     } catch (error) {
       console.error('Error processing document:', error);
       throw error;

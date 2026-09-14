@@ -29,11 +29,12 @@ router.post('/upload', uploadMiddleware.single('file'), async (req, res) => {
     };
 
     // Process document into chunks
-    const chunks = await documentService.processDocument(fileData.path, fileData.mimetype);
+    const { chunks, documentId } = await documentService.processDocument(fileData.path, fileData.mimetype);
 
     return res.status(200).json({
       message: 'File uploaded and processed successfully',
       file: fileData,
+      documentId,
       chunksGenerated: chunks.length,
     });
   } catch (error: any) {
