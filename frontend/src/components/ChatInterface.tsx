@@ -10,6 +10,8 @@ interface Message {
   content: string;
   timestamp: Date;
   isStreaming?: boolean;
+  sources?: { documentId: string; filename: string; text: string; score: number }[];
+  isRefusal?: boolean;
 }
 
 export const ChatInterface = () => {
@@ -72,7 +74,13 @@ export const ChatInterface = () => {
       
       setMessages((prev) => 
         prev.map((msg) => 
-          msg.id === assistantId ? { ...msg, content: response.answer || "I couldn't generate a response.", isStreaming: false } : msg
+          msg.id === assistantId ? { 
+            ...msg, 
+            content: response.answer || "I couldn't generate a response.", 
+            isStreaming: false,
+            sources: response.sources,
+            isRefusal: response.isRefusal
+          } : msg
         )
       );
     } catch (error: any) {
@@ -137,6 +145,7 @@ export const ChatInterface = () => {
               <div className={`px-5 py-3.5 rounded-2xl shadow-sm border
                 ${msg.role === 'user' ? 'bg-blue-600 text-white border-blue-700 rounded-tr-sm' : 
                   msg.role === 'error' ? 'bg-red-50 text-red-800 border-red-200 rounded-tl-sm' : 
+                  msg.isRefusal ? 'bg-amber-50 text-amber-900 border-amber-200 rounded-tl-sm' :
                   'bg-white text-slate-800 border-slate-200 rounded-tl-sm'} 
                 ${msg.isStreaming ? 'bg-slate-50' : ''}`}
               >
