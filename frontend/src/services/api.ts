@@ -6,6 +6,8 @@ export interface LLMResponse {
     totalTokens: number;
     estimatedCostUsd: number;
   };
+  sources?: { documentId: string; filename: string; text: string; score: number }[];
+  isRefusal?: boolean;
 }
 
 const API_BASE_URL = 'http://localhost:3001/api';
@@ -19,7 +21,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
  */
 export const sendPrompt = async (prompt: string, sessionId?: string): Promise<LLMResponse> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/llm/test`, {
+    const response = await fetch(`${API_BASE_URL}/rag/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +69,7 @@ export const streamPrompt = async (
   onChunk?: (chunk: string) => void
 ): Promise<LLMResponse> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/llm/stream`, {
+    const response = await fetch(`${API_BASE_URL}/rag/stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,6 +103,8 @@ export const streamPrompt = async (
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let usageData: LLMResponse['usage'] | null = null;
+    let sourcesData: LLMResponse['sources'] | null = null;
+    let isRefusalData: boolean | undefined = undefined;
     let fullAnswer = '';
 
     while (true) {
@@ -124,8 +128,10 @@ export const streamPrompt = async (
               fullAnswer += data.chunk;
               if (onChunk) onChunk(data.chunk);
             }
-            if (data.done && data.usage) {
-              usageData = data.usage;
+            if (data.done) {
+              if (data.usage) usageData = data.usage;
+              if (data.sources) sourcesData = data.sources;
+              if (data.isRefusal !== undefined) isRefusalData = data.isRefusal;
             }
           } catch (e) {
             // Ignore parse errors on incomplete chunks if any
@@ -137,6 +143,8 @@ export const streamPrompt = async (
     return {
       answer: fullAnswer,
       usage: usageData || { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+      sources: sourcesData || [],
+      isRefusal: isRefusalData || false,
     };
   } catch (error) {
     console.error('Streaming API Error:', error);
