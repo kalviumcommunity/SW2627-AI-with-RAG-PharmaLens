@@ -54,7 +54,7 @@ router.post('/stream', async (req, res) => {
     );
 
     if (!isClientDisconnected) {
-      res.write(`data: ${JSON.stringify({ done: true, usage: result.usage })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, usage: result.usage, sources: result.sources })}\n\n`);
       res.end();
     }
   } catch (error: any) {

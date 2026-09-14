@@ -11,14 +11,22 @@ export interface RagQueryOptions {
   documentId?: string;
 }
 
+export interface SourceMetadata {
+  documentId: string;
+  filename: string;
+  text: string;
+  score: number;
+}
+
 export class RagService {
   /**
    * Retrieves strictly relevant and ranked context from Pinecone for a given prompt.
+   * Returns both the concatenated context string and the raw source metadata.
    */
-  private async retrieveContext(prompt: string, documentId?: string): Promise<string> {
+  private async retrieveContext(prompt: string, documentId?: string): Promise<{ contextStr: string; sources: SourceMetadata[] }> {
     try {
       const queryVector = await llmService.generateEmbeddings([prompt]);
-      if (queryVector.length === 0) return '';
+      if (queryVector.length === 0) return { contextStr: '', sources: [] };
 
       const filter = documentId ? { documentId } : undefined;
       // Stage 1: Recall a larger pool (topK = 10)
@@ -26,17 +34,25 @@ export class RagService {
       
       // Filter matches that are mathematically relevant
       const relevantMatches = matches.filter(m => m.score && m.score >= 0.4);
-      if (relevantMatches.length === 0) return '';
+      if (relevantMatches.length === 0) return { contextStr: '', sources: [] };
 
       // Stage 2: Lexical Re-Ranking (boost keyword matches and take top 3)
       const finalChunks = rerankChunks(prompt, relevantMatches, 3);
 
+      const sources: SourceMetadata[] = finalChunks.map(m => ({
+        documentId: m.metadata.documentId,
+        filename: m.metadata.filename,
+        text: m.metadata.text,
+        score: m.score || 0
+      }));
+
       // Build context string from metadata
       const contextStr = finalChunks.map(m => `Source: ${m.metadata.filename}\n${m.metadata.text}`).join('\n\n');
-      return contextStr;
+      
+      return { contextStr, sources };
     } catch (err) {
       console.error('Retrieval error:', err);
-      return ''; // Fail gracefully if Pinecone is down or not set
+      return { contextStr: '', sources: [] }; // Fail gracefully if Pinecone is down or not set
     }
   }
 
@@ -46,7 +62,7 @@ export class RagService {
   private async buildFinalMessages(prompt: string, options: RagQueryOptions) {
     const { systemInstruction, context, sessionId, documentId } = options;
 
-    const retrievedContext = await this.retrieveContext(prompt, documentId);
+    const { contextStr: retrievedContext, sources } = await this.retrieveContext(prompt, documentId);
     const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
 
     const newMessages = buildRagPrompt({
@@ -68,14 +84,14 @@ export class RagService {
       finalMessages = historyService.getHistory(sessionId);
     }
 
-    return finalMessages;
+    return { finalMessages, sources };
   }
 
   /**
    * Processes a standard (non-streaming) RAG query.
    */
   async processQuery(prompt: string, options: RagQueryOptions) {
-    const finalMessages = await this.buildFinalMessages(prompt, options);
+    const { finalMessages, sources } = await this.buildFinalMessages(prompt, options);
     const result = await llmService.getCompletion(finalMessages);
 
     if (options.sessionId && result.answer) {
@@ -85,7 +101,10 @@ export class RagService {
       });
     }
 
-    return result;
+    return {
+      ...result,
+      sources
+    };
   }
 
   /**
@@ -97,7 +116,7 @@ export class RagService {
     onChunk: (chunk: string) => void,
     onCheckDisconnect: () => boolean
   ) {
-    const finalMessages = await this.buildFinalMessages(prompt, options);
+    const { finalMessages, sources } = await this.buildFinalMessages(prompt, options);
     
     const result = await llmService.streamCompletion(finalMessages, (chunk) => {
       if (onCheckDisconnect()) return;
@@ -111,7 +130,10 @@ export class RagService {
       });
     }
 
-    return result;
+    return {
+      ...result,
+      sources
+    };
   }
 }
 
