@@ -37,6 +37,9 @@ export class LLMService {
         {
           model: env.llmModel,
           messages,
+          temperature: env.llmTemperature,
+          top_p: env.llmTopP,
+          max_tokens: env.llmMaxOutputTokens,
         },
         { timeout: env.llmTimeoutMs }
       );
@@ -72,6 +75,9 @@ export class LLMService {
         model: env.llmModel,
         messages,
         stream: true,
+        temperature: env.llmTemperature,
+        top_p: env.llmTopP,
+        max_tokens: env.llmMaxOutputTokens,
       },
       { timeout: env.llmTimeoutMs }
     );
