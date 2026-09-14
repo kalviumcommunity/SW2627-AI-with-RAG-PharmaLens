@@ -1,6 +1,8 @@
 import { llmService } from './llm.service';
 import { vectorService } from './vector.service';
 import { historyService } from './history.service';
+import { cacheService } from './cache.service';
+import { usageService } from './usage.service';
 import { rerankChunks } from '../utils/reranker';
 import { buildRagPrompt } from '../utils/promptBuilder';
 import { ChatCompletionMessageParam } from 'openai/resources';
@@ -130,10 +132,22 @@ export class RagService {
     return answer.includes("couldn't find sufficient evidence") || answer.includes("could not find sufficient evidence");
   }
 
-  /**
-   * Processes a standard (non-streaming) RAG query.
-   */
   async processQuery(prompt: string, options: RagQueryOptions) {
+    // 0. Check Cache First
+    const cached = cacheService.get(prompt, options.documentId, options.sessionId);
+    if (cached) {
+      if (options.sessionId) {
+        historyService.addMessage(options.sessionId, { role: 'assistant', content: cached.answer });
+      }
+      return {
+        answer: cached.answer,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+        sources: cached.sources,
+        isRefusal: this.isRefusalResponse(cached.answer),
+        cached: true
+      };
+    }
+
     // 1. Rephrase the query if conversation history exists
     const standalonePrompt = await this.rephrasePrompt(prompt, options.sessionId);
 
@@ -163,6 +177,23 @@ export class RagService {
       });
     }
 
+    // Save to Cache
+    if (result.answer && !isRefusal) {
+      cacheService.set(prompt, result.answer, sources, options.documentId, options.sessionId);
+    }
+
+    // Log Usage
+    if (result.usage) {
+      await usageService.logUsage({
+        prompt: standalonePrompt,
+        sessionId: options.sessionId,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.totalTokens,
+        estimatedCostUsd: result.usage.estimatedCostUsd
+      });
+    }
+
     return {
       ...result,
       sources,
@@ -170,15 +201,28 @@ export class RagService {
     };
   }
 
-  /**
-   * Processes a streaming RAG query.
-   */
   async processStreamQuery(
     prompt: string, 
     options: RagQueryOptions, 
     onChunk: (chunk: string) => void,
     onCheckDisconnect: () => boolean
   ) {
+    // 0. Check Cache First
+    const cached = cacheService.get(prompt, options.documentId, options.sessionId);
+    if (cached) {
+      onChunk(cached.answer);
+      if (options.sessionId && !onCheckDisconnect()) {
+        historyService.addMessage(options.sessionId, { role: 'assistant', content: cached.answer });
+      }
+      return {
+        answer: cached.answer,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+        sources: cached.sources,
+        isRefusal: this.isRefusalResponse(cached.answer),
+        cached: true
+      };
+    }
+
     // 1. Rephrase the query if conversation history exists
     const standalonePrompt = await this.rephrasePrompt(prompt, options.sessionId);
 
@@ -210,6 +254,23 @@ export class RagService {
       historyService.addMessage(options.sessionId, {
         role: 'assistant',
         content: result.answer,
+      });
+    }
+
+    // Save to Cache
+    if (result.answer && !isRefusal && !onCheckDisconnect()) {
+      cacheService.set(prompt, result.answer, sources, options.documentId, options.sessionId);
+    }
+
+    // Log Usage
+    if (result.usage && !onCheckDisconnect()) {
+      await usageService.logUsage({
+        prompt: standalonePrompt,
+        sessionId: options.sessionId,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        totalTokens: result.usage.totalTokens,
+        estimatedCostUsd: result.usage.estimatedCostUsd
       });
     }
 
