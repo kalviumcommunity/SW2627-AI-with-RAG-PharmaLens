@@ -18,6 +18,8 @@ export interface SourceMetadata {
   score: number;
 }
 
+const STANDARD_REFUSAL = "I couldn't find sufficient evidence in the available documents to answer this question.";
+
 export class RagService {
   /**
    * Retrieves strictly relevant and ranked context from Pinecone for a given prompt.
@@ -65,6 +67,8 @@ export class RagService {
     const { contextStr: retrievedContext, sources } = await this.retrieveContext(prompt, documentId);
     const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
 
+    const hasContext = sources.length > 0 || !!context;
+
     const newMessages = buildRagPrompt({
       userQuestion: prompt,
       systemInstruction,
@@ -84,15 +88,35 @@ export class RagService {
       finalMessages = historyService.getHistory(sessionId);
     }
 
-    return { finalMessages, sources };
+    return { finalMessages, sources, hasContext };
+  }
+
+  private isRefusalResponse(answer: string | null): boolean {
+    if (!answer) return false;
+    return answer.includes("couldn't find sufficient evidence") || answer.includes("could not find sufficient evidence");
   }
 
   /**
    * Processes a standard (non-streaming) RAG query.
    */
   async processQuery(prompt: string, options: RagQueryOptions) {
-    const { finalMessages, sources } = await this.buildFinalMessages(prompt, options);
+    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, options);
+    
+    // Short-Circuit Hallucination Guardrail
+    if (!hasContext) {
+      if (options.sessionId) {
+        historyService.addMessage(options.sessionId, { role: 'assistant', content: STANDARD_REFUSAL });
+      }
+      return {
+        answer: STANDARD_REFUSAL,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+        sources: [],
+        isRefusal: true
+      };
+    }
+
     const result = await llmService.getCompletion(finalMessages);
+    const isRefusal = this.isRefusalResponse(result.answer);
 
     if (options.sessionId && result.answer) {
       historyService.addMessage(options.sessionId, {
@@ -103,7 +127,8 @@ export class RagService {
 
     return {
       ...result,
-      sources
+      sources,
+      isRefusal
     };
   }
 
@@ -116,12 +141,28 @@ export class RagService {
     onChunk: (chunk: string) => void,
     onCheckDisconnect: () => boolean
   ) {
-    const { finalMessages, sources } = await this.buildFinalMessages(prompt, options);
+    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, options);
     
+    // Short-Circuit Hallucination Guardrail
+    if (!hasContext) {
+      onChunk(STANDARD_REFUSAL);
+      if (options.sessionId && !onCheckDisconnect()) {
+        historyService.addMessage(options.sessionId, { role: 'assistant', content: STANDARD_REFUSAL });
+      }
+      return {
+        answer: STANDARD_REFUSAL,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0, estimatedCostUsd: 0 },
+        sources: [],
+        isRefusal: true
+      };
+    }
+
     const result = await llmService.streamCompletion(finalMessages, (chunk) => {
       if (onCheckDisconnect()) return;
       onChunk(chunk);
     });
+
+    const isRefusal = this.isRefusalResponse(result.answer);
 
     if (options.sessionId && result.answer && !onCheckDisconnect()) {
       historyService.addMessage(options.sessionId, {
@@ -132,7 +173,8 @@ export class RagService {
 
     return {
       ...result,
-      sources
+      sources,
+      isRefusal
     };
   }
 }
