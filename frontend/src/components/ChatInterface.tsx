@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Bot, User, ShieldAlert } from 'lucide-react';
+import { Send, Loader2, Bot, User, ShieldAlert, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { streamPrompt } from '../services/api';
@@ -160,6 +160,41 @@ export const ChatInterface = () => {
                     </ReactMarkdown>
                   )}
                 </div>
+
+                {/* Sources Display */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-slate-200/60">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center">
+                      <FileText className="w-3 h-3 mr-1" /> Citations
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.sources.map((source, idx) => (
+                        <div key={idx} className="group relative">
+                          <div className="flex items-center px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-medium rounded-md border border-slate-200 cursor-help transition-colors">
+                            {source.filename}
+                            <span className="ml-1.5 px-1 py-0.5 bg-white rounded text-[9px] text-slate-400 font-bold">
+                              {(source.score * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          
+                          {/* Hover Tooltip showing the exact text snippet */}
+                          <div className="absolute bottom-full left-0 mb-2 w-72 p-3 bg-slate-800 text-slate-100 text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 pointer-events-none">
+                            <div className="font-semibold mb-1 text-slate-300 flex justify-between items-center">
+                              <span>Source Snippet</span>
+                            </div>
+                            <div className="italic text-slate-300 line-clamp-6 leading-relaxed">
+                              "{source.text}"
+                            </div>
+                            <div className="mt-2 text-[10px] text-slate-400 text-right">
+                              ID: {source.documentId.split('-')[0]}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className={`text-[10px] mt-2 font-medium ${msg.role === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                   {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
