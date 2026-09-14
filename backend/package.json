@@ -10,7 +10,8 @@
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "test:embeddings": "npx tsx -r dotenv/config scripts/test-embeddings.ts",
-    "test:retrieval": "npx tsx -r dotenv/config scripts/test-retrieval.ts"
+    "test:retrieval": "npx tsx -r dotenv/config scripts/test-retrieval.ts",
+    "test:quality": "npx tsx -r dotenv/config scripts/test-rag-quality.ts"
   },
   "keywords": [],
   "author": "",
