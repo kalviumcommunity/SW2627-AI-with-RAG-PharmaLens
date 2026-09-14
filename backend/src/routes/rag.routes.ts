@@ -3,7 +3,7 @@ import { ragService } from '../services/rag.service';
 
 const router = Router();
 
-router.post('/test', async (req, res) => {
+router.post('/query', async (req, res) => {
   const { prompt, systemInstruction, context, sessionId, documentId } = req.body;
 
   if (!prompt || typeof prompt !== 'string') {
@@ -65,4 +65,4 @@ router.post('/stream', async (req, res) => {
   }
 });
 
-export const llmRoutes = router;
+export const ragRoutes = router;
