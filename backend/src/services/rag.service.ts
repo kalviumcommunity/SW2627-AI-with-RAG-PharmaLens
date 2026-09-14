@@ -3,6 +3,7 @@ import { vectorService } from './vector.service';
 import { historyService } from './history.service';
 import { rerankChunks } from '../utils/reranker';
 import { buildRagPrompt } from '../utils/promptBuilder';
+import { ChatCompletionMessageParam } from 'openai/resources';
 
 export interface RagQueryOptions {
   systemInstruction?: string;
@@ -59,18 +60,51 @@ export class RagService {
   }
 
   /**
+   * Rephrases the user's prompt into a standalone query using conversation history.
+   * This is critical for Conversational RAG so the Vector DB gets context-rich searches.
+   */
+  private async rephrasePrompt(originalPrompt: string, sessionId?: string): Promise<string> {
+    if (!sessionId) return originalPrompt;
+    
+    const history = historyService.getHistory(sessionId);
+    // Filter out the monolithic system RAG prompt and only keep the dialogue
+    const dialogue = history.filter(m => m.role !== 'system');
+    
+    // If no previous dialogue, the original prompt is already standalone
+    if (dialogue.length === 0) return originalPrompt;
+
+    const reformulationMessages: ChatCompletionMessageParam[] = [
+      { 
+        role: 'system', 
+        content: 'Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question. If it is already standalone, return it exactly as is. DO NOT ANSWER THE QUESTION, ONLY REPHRASE IT.' 
+      },
+      ...dialogue,
+      { role: 'user', content: originalPrompt }
+    ];
+
+    try {
+      // Use the standard LLM call to rewrite the prompt
+      const result = await llmService.getCompletion(reformulationMessages);
+      return result.answer || originalPrompt;
+    } catch (err) {
+      console.error('Error rephrasing prompt:', err);
+      return originalPrompt; // Fallback to original prompt if LLM fails
+    }
+  }
+
+  /**
    * Prepares the final array of message objects for the LLM.
    */
-  private async buildFinalMessages(prompt: string, options: RagQueryOptions) {
+  private async buildFinalMessages(originalPrompt: string, standalonePrompt: string, options: RagQueryOptions) {
     const { systemInstruction, context, sessionId, documentId } = options;
 
-    const { contextStr: retrievedContext, sources } = await this.retrieveContext(prompt, documentId);
+    const { contextStr: retrievedContext, sources } = await this.retrieveContext(standalonePrompt, documentId);
     const finalContext = context ? `${context}\n\n${retrievedContext}` : retrievedContext;
 
     const hasContext = sources.length > 0 || !!context;
 
     const newMessages = buildRagPrompt({
-      userQuestion: prompt,
+      userQuestion: originalPrompt, // Use the original prompt for the user-facing UI
       systemInstruction,
       context: finalContext,
     });
@@ -100,7 +134,11 @@ export class RagService {
    * Processes a standard (non-streaming) RAG query.
    */
   async processQuery(prompt: string, options: RagQueryOptions) {
-    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, options);
+    // 1. Rephrase the query if conversation history exists
+    const standalonePrompt = await this.rephrasePrompt(prompt, options.sessionId);
+
+    // 2. Build messages and context using the standalone prompt for search
+    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, standalonePrompt, options);
     
     // Short-Circuit Hallucination Guardrail
     if (!hasContext) {
@@ -141,7 +179,11 @@ export class RagService {
     onChunk: (chunk: string) => void,
     onCheckDisconnect: () => boolean
   ) {
-    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, options);
+    // 1. Rephrase the query if conversation history exists
+    const standalonePrompt = await this.rephrasePrompt(prompt, options.sessionId);
+
+    // 2. Build messages and context using the standalone prompt for search
+    const { finalMessages, sources, hasContext } = await this.buildFinalMessages(prompt, standalonePrompt, options);
     
     // Short-Circuit Hallucination Guardrail
     if (!hasContext) {
