@@ -1,7 +1,17 @@
 import { Router } from 'express';
-import { ragService } from '../services/rag.service';
+import { ragService, RagQueryOptions } from '../services/rag.service';
+import { usageService } from '../services/usage.service';
 
 const router = Router();
+
+router.get('/usage', async (req, res) => {
+  try {
+    const stats = await usageService.getUsageStats();
+    return res.status(200).json(stats);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
 
 router.post('/query', async (req, res) => {
   const { prompt, systemInstruction, context, sessionId, documentId } = req.body;
