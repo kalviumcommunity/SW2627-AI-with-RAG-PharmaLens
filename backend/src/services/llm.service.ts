@@ -167,6 +167,9 @@ export class LLMService {
         const response = await this.ai.models.embedContent({
           model: env.embeddingModel,
           contents: batch,
+          config: {
+            outputDimensionality: 768
+          }
         });
 
         // The response might be an array or a single object depending on input

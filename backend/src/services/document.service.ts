@@ -47,6 +47,10 @@ export class DocumentService {
 
       const chunks = this.chunkText(text);
 
+      if (chunks.length === 0) {
+        throw new Error(`Failed to extract text. Mimetype was: ${mimetype}. Text length was: ${text.length}`);
+      }
+
       // Generate Embeddings
       const embeddings = await llmService.generateEmbeddings(chunks);
 
