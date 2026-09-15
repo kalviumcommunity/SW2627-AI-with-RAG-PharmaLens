@@ -1,0 +1,32 @@
+CLINICAL TRIAL SUMMARY REPORT
+Date: September 15, 2026
+Sponsor: NovaPharm Therapeutics
+Study Drug: Neurolysin (NVS-402)
+Phase: Phase 3, Randomized, Double-Blind, Placebo-Controlled
+
+1. STUDY OBJECTIVE
+To evaluate the efficacy and safety of Neurolysin (NVS-402) in adult patients (ages 18-65) diagnosed with severe chronic migraines, defined as experiencing 15 or more headache days per month.
+
+2. METHODOLOGY
+A total of 1,200 participants were enrolled across 45 clinical sites in North America and Europe. Participants were randomized in a 1:1 ratio to receive either Neurolysin (50mg administered intravenously once every 4 weeks) or a placebo matching in appearance. The trial lasted for 24 weeks.
+
+3. EFFICACY RESULTS
+Primary Endpoint: Reduction in Monthly Migraine Days (MMD).
+- The Neurolysin group demonstrated a statistically significant reduction of 8.4 MMDs from baseline (p < 0.001).
+- The placebo group showed a reduction of only 3.2 MMDs from baseline.
+
+Secondary Endpoint: 50% Responder Rate (percentage of patients achieving at least a 50% reduction in MMDs).
+- 68% of patients in the Neurolysin group achieved a 50% or greater reduction in MMDs.
+- 22% of patients in the placebo group achieved the same milestone.
+
+4. SAFETY & ADVERSE EVENTS (AEs)
+Neurolysin was generally well-tolerated. No fatal adverse events were reported during the 24-week period.
+The most commonly reported adverse events in the Neurolysin group (occurring in >5% of patients) included:
+- Injection site reactions (mild to moderate erythema): 14%
+- Nausea: 8%
+- Fatigue: 6%
+
+Severe adverse events (SAEs) occurred in 1.2% of the Neurolysin group compared to 1.5% in the placebo group, indicating that Neurolysin does not significantly increase the risk of severe medical complications.
+
+5. CONCLUSION
+Neurolysin (NVS-402) administered at 50mg every 4 weeks is highly effective in reducing the frequency of chronic migraines compared to placebo. Its safety profile is favorable, with predominantly mild, transient adverse events. Neurolysin represents a promising therapeutic option for treatment-resistant chronic migraine patients.

@@ -8,7 +8,7 @@ export const env = {
   port: process.env.PORT || 3001,
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   llmModel: process.env.LLM_MODEL || 'gemini-2.5-flash',
-  embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
+  embeddingModel: process.env.EMBEDDING_MODEL || 'gemini-embedding-001',
   llmTimeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10),
   pineconeApiKey: process.env.PINECONE_API_KEY || '',
   pineconeIndex: process.env.PINECONE_INDEX || 'pharmalens-gemini',
