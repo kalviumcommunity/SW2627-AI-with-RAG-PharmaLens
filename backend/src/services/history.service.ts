@@ -1,18 +1,22 @@
-import { ChatCompletionMessageParam } from 'openai/resources';
 import { estimateTokenCount } from '../utils/tokenizer';
 import { env } from '../config/env';
+
+export interface HistoryMessage {
+  role: 'user' | 'model' | 'system' | 'assistant';
+  content: string;
+}
 
 /**
  * In-memory history store for conversation contexts.
  * In a production environment, this should be replaced with a database (e.g. MongoDB/Redis).
  */
 export class HistoryService {
-  private store: Map<string, ChatCompletionMessageParam[]> = new Map();
+  private store: Map<string, HistoryMessage[]> = new Map();
 
   /**
    * Retrieves the current history for a session.
    */
-  getHistory(sessionId: string): ChatCompletionMessageParam[] {
+  getHistory(sessionId: string): HistoryMessage[] {
     return this.store.get(sessionId) || [];
   }
 
@@ -20,7 +24,7 @@ export class HistoryService {
    * Adds a new message to the session's history and trims the history
    * if it exceeds the maximum token limit for context windows.
    */
-  addMessage(sessionId: string, message: ChatCompletionMessageParam): void {
+  addMessage(sessionId: string, message: HistoryMessage): void {
     const history = this.getHistory(sessionId);
     history.push(message);
 
@@ -39,7 +43,7 @@ export class HistoryService {
    * Trims the history by removing the oldest messages (excluding the system prompt)
    * until the total token count is within the LLM_MAX_HISTORY_TOKENS limit.
    */
-  private trimHistory(history: ChatCompletionMessageParam[]): ChatCompletionMessageParam[] {
+  private trimHistory(history: HistoryMessage[]): HistoryMessage[] {
     let currentHistory = [...history];
 
     // Find the system prompt if it exists (usually the first message)
@@ -51,7 +55,8 @@ export class HistoryService {
     while (conversation.length > 0) {
       // Reconstruct the array to measure tokens
       const messagesToMeasure = systemPrompt ? [systemPrompt, ...conversation] : conversation;
-      const tokenCount = estimateTokenCount(messagesToMeasure);
+      // Since estimateTokenCount accepts strings, we map the content
+      const tokenCount = estimateTokenCount(messagesToMeasure.map(m => m.content).join('\n'));
 
       if (tokenCount <= env.llmMaxHistoryTokens) {
         return messagesToMeasure;

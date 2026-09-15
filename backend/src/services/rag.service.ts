@@ -1,11 +1,10 @@
 import { llmService } from './llm.service';
 import { vectorService } from './vector.service';
-import { historyService } from './history.service';
+import { historyService, HistoryMessage } from './history.service';
 import { cacheService } from './cache.service';
 import { usageService } from './usage.service';
 import { rerankChunks } from '../utils/reranker';
 import { buildRagPrompt } from '../utils/promptBuilder';
-import { ChatCompletionMessageParam } from 'openai/resources';
 
 export interface RagQueryOptions {
   systemInstruction?: string;
@@ -75,7 +74,7 @@ export class RagService {
     // If no previous dialogue, the original prompt is already standalone
     if (dialogue.length === 0) return originalPrompt;
 
-    const reformulationMessages: ChatCompletionMessageParam[] = [
+    const reformulationMessages: HistoryMessage[] = [
       { 
         role: 'system', 
         content: 'Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question. If it is already standalone, return it exactly as is. DO NOT ANSWER THE QUESTION, ONLY REPHRASE IT.' 

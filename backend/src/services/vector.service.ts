@@ -46,7 +46,7 @@ export class VectorService {
         console.log(`Vector database index '${env.pineconeIndex}' not found. Provisioning now...`);
         await this.pinecone.createIndex({
           name: env.pineconeIndex,
-          dimension: 1536,
+          dimension: 768,
           metric: 'cosine',
           spec: {
             serverless: {

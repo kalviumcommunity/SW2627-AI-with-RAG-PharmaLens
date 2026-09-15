@@ -4,12 +4,12 @@ dotenv.config();
 
 export const env = {
   port: process.env.PORT || 3001,
-  openAiApiKey: process.env.OPENAI_API_KEY || '',
-  llmModel: process.env.LLM_MODEL || 'gpt-3.5-turbo',
-  embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  llmModel: process.env.LLM_MODEL || 'gemini-2.5-flash',
+  embeddingModel: process.env.EMBEDDING_MODEL || 'text-embedding-004',
   llmTimeoutMs: parseInt(process.env.LLM_TIMEOUT_MS || '30000', 10),
   pineconeApiKey: process.env.PINECONE_API_KEY || '',
-  pineconeIndex: process.env.PINECONE_INDEX || 'pharmalens',
+  pineconeIndex: process.env.PINECONE_INDEX || 'pharmalens-gemini',
   llmMaxPromptTokens: parseInt(process.env.LLM_MAX_PROMPT_TOKENS || '100000', 10),
   llmMaxHistoryTokens: parseInt(process.env.LLM_MAX_HISTORY_TOKENS || '2000', 10),
   llmTemperature: parseFloat(process.env.LLM_TEMPERATURE || '0.1'),

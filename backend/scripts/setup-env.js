@@ -17,7 +17,7 @@ if (!fs.existsSync(envPath)) {
 
   console.log('\n❌ SERVER STOPPED.');
   console.log('Please open the new `.env` file in the root directory and add your API keys:');
-  console.log(' - OPENAI_API_KEY');
+  console.log(' - GEMINI_API_KEY');
   console.log(' - PINECONE_API_KEY');
   console.log('\nOnce you have added them, run `npm run dev` again.');
   console.log('=========================================\n');

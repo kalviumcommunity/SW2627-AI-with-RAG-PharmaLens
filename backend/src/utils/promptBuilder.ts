@@ -1,4 +1,4 @@
-import { ChatCompletionMessageParam } from 'openai/resources';
+import { HistoryMessage } from '../services/history.service';
 
 export interface PromptInput {
   systemInstruction?: string;
@@ -14,8 +14,8 @@ export const buildRagPrompt = ({
   systemInstruction,
   context,
   userQuestion,
-}: PromptInput): ChatCompletionMessageParam[] => {
-  const messages: ChatCompletionMessageParam[] = [];
+}: PromptInput): HistoryMessage[] => {
+  const messages: HistoryMessage[] = [];
 
   // 1. Establish the core persona and rules
   const baseInstruction = systemInstruction || 

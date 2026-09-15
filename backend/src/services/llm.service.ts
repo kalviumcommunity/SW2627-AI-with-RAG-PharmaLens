@@ -1,6 +1,6 @@
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import { env } from '../config/env';
-import { ChatCompletionMessageParam } from 'openai/resources';
+import { HistoryMessage } from './history.service';
 import { estimateTokenCount, calculateCost } from '../utils/tokenizer';
 
 export interface LLMResponse {
@@ -14,41 +14,61 @@ export interface LLMResponse {
 }
 
 export class LLMService {
-  private openai: OpenAI;
+  private ai: GoogleGenAI;
 
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: env.openAiApiKey,
+    this.ai = new GoogleGenAI({
+      apiKey: env.geminiApiKey,
     });
   }
 
-  async getCompletion(messages: ChatCompletionMessageParam[]): Promise<LLMResponse> {
-    if (!env.openAiApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured.');
+  /**
+   * Helper to format generic HistoryMessage to Gemini format.
+   */
+  private formatMessages(messages: HistoryMessage[]) {
+    // Gemini handles system instructions separately, not as standard messages
+    const systemPrompt = messages.find(m => m.role === 'system')?.content;
+    const conversation = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({
+        role: (m.role === 'assistant' || m.role === 'model') ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      }));
+      
+    return { systemPrompt, conversation };
+  }
+
+  async getCompletion(messages: HistoryMessage[]): Promise<LLMResponse> {
+    if (!env.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not configured.');
     }
 
-    const estimatedInputTokens = estimateTokenCount(messages);
+    const inputString = messages.map(m => m.content).join('\n');
+    const estimatedInputTokens = estimateTokenCount(inputString);
+    
     if (estimatedInputTokens > env.llmMaxPromptTokens) {
       throw new Error(`Prompt exceeds maximum token limit (${estimatedInputTokens} > ${env.llmMaxPromptTokens}).`);
     }
 
-    try {
-      const response = await this.openai.chat.completions.create(
-        {
-          model: env.llmModel,
-          messages,
-          temperature: env.llmTemperature,
-          top_p: env.llmTopP,
-          max_tokens: env.llmMaxOutputTokens,
-        },
-        { timeout: env.llmTimeoutMs }
-      );
+    const { systemPrompt, conversation } = this.formatMessages(messages);
 
-      const answer = response.choices[0]?.message?.content || null;
+    try {
+      const response = await this.ai.models.generateContent({
+        model: env.llmModel,
+        contents: conversation,
+        config: {
+          systemInstruction: systemPrompt ? { role: 'system', parts: [{ text: systemPrompt }] } : undefined,
+          temperature: env.llmTemperature,
+          topP: env.llmTopP,
+          maxOutputTokens: env.llmMaxOutputTokens,
+        }
+      });
+
+      const answer = response.text || null;
       
-      const inputTokens = response.usage?.prompt_tokens || estimatedInputTokens;
-      const outputTokens = response.usage?.completion_tokens || 0;
-      const totalTokens = response.usage?.total_tokens || (inputTokens + outputTokens);
+      const inputTokens = response.usageMetadata?.promptTokenCount || estimatedInputTokens;
+      const outputTokens = response.usageMetadata?.candidatesTokenCount || 0;
+      const totalTokens = response.usageMetadata?.totalTokenCount || (inputTokens + outputTokens);
       const estimatedCostUsd = calculateCost(inputTokens, outputTokens);
 
       return {
@@ -67,35 +87,42 @@ export class LLMService {
   }
 
   public async streamCompletion(
-    messages: ChatCompletionMessageParam[],
+    messages: HistoryMessage[],
     onChunk: (text: string) => void
   ): Promise<LLMResponse> {
-    const stream = await this.openai.chat.completions.create(
-      {
-        model: env.llmModel,
-        messages,
-        stream: true,
+    const inputString = messages.map(m => m.content).join('\n');
+    const estimatedInputTokens = estimateTokenCount(inputString);
+    
+    const { systemPrompt, conversation } = this.formatMessages(messages);
+
+    const stream = await this.ai.models.generateContentStream({
+      model: env.llmModel,
+      contents: conversation,
+      config: {
+        systemInstruction: systemPrompt ? { role: 'system', parts: [{ text: systemPrompt }] } : undefined,
         temperature: env.llmTemperature,
-        top_p: env.llmTopP,
-        max_tokens: env.llmMaxOutputTokens,
-      },
-      { timeout: env.llmTimeoutMs }
-    );
+        topP: env.llmTopP,
+        maxOutputTokens: env.llmMaxOutputTokens,
+      }
+    });
 
     let fullAnswer = '';
+    let finalUsage: any = null;
 
     for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content || '';
+      const content = chunk.text || '';
       if (content) {
         fullAnswer += content;
         onChunk(content);
       }
+      if (chunk.usageMetadata) {
+        finalUsage = chunk.usageMetadata;
+      }
     }
 
-    const inputString = messages.map(m => String(m.content)).join('\n');
-    const inputTokens = estimateTokenCount(inputString);
-    const outputTokens = estimateTokenCount(fullAnswer);
-    const totalTokens = inputTokens + outputTokens;
+    const inputTokens = finalUsage?.promptTokenCount || estimatedInputTokens;
+    const outputTokens = finalUsage?.candidatesTokenCount || estimateTokenCount(fullAnswer);
+    const totalTokens = finalUsage?.totalTokenCount || (inputTokens + outputTokens);
 
     return {
       answer: fullAnswer,
@@ -126,8 +153,8 @@ export class LLMService {
    * @returns An array of number arrays (vectors)
    */
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
-    if (!env.openAiApiKey) {
-      throw new Error('OPENAI_API_KEY is not configured.');
+    if (!env.geminiApiKey) {
+      throw new Error('GEMINI_API_KEY is not configured.');
     }
 
     try {
@@ -137,12 +164,14 @@ export class LLMService {
       for (let i = 0; i < texts.length; i += batchSize) {
         const batch = texts.slice(i, i + batchSize);
         
-        const response = await this.openai.embeddings.create({
+        const response = await this.ai.models.embedContent({
           model: env.embeddingModel,
-          input: batch,
+          contents: batch,
         });
 
-        const batchEmbeddings = response.data.map(item => item.embedding);
+        // The response might be an array or a single object depending on input
+        const embeddingsResponse = response.embeddings || [];
+        const batchEmbeddings = embeddingsResponse.map((item: any) => item.values);
         allEmbeddings.push(...batchEmbeddings);
 
         // Add a small delay between batches if there are more batches to process

@@ -1,11 +1,10 @@
 import { encoding_for_model, TiktokenModel } from 'tiktoken';
 import { env } from '../config/env';
-import { ChatCompletionMessageParam } from 'openai/resources';
 
 /**
  * Estimates the number of tokens in a string or an array of Chat messages.
  */
-export const estimateTokenCount = (input: string | ChatCompletionMessageParam[]): number => {
+export const estimateTokenCount = (input: string | any[]): number => {
   // tiktoken supports specific models like 'gpt-3.5-turbo', 'gpt-4', etc.
   // Fallback to 'gpt-3.5-turbo' if the model is unknown
   const modelName = env.llmModel as TiktokenModel;

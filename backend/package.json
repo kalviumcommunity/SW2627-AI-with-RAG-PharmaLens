@@ -19,12 +19,12 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@google/genai": "^2.22.0",
     "@pinecone-database/pinecone": "^9.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.3.0",
-    "openai": "^7.13.0",
     "pdf-parse": "^2.4.5",
     "tiktoken": "^1.0.22",
     "uuid": "^14.0.2"
